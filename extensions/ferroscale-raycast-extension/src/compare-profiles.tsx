@@ -175,11 +175,11 @@ function ComparisonDetail({
             />
             <Action.CopyToClipboard
               content={`${resultA.totalWeightKg.toFixed(3)} kg`}
-              title="Copy a Total Weight"
+              title="Copy First Total Weight"
             />
             <Action.CopyToClipboard
               content={`${resultB.totalWeightKg.toFixed(3)} kg`}
-              title="Copy B Total Weight"
+              title="Copy Second Total Weight"
             />
           </ActionPanel.Section>
         </ActionPanel>
@@ -222,7 +222,7 @@ function ResultRow({
           />
           {onChangeA && (
             <Action
-              title="Change Profile a"
+              title="Change Locked Query"
               icon={Icon.ArrowLeft}
               onAction={onChangeA}
             />
@@ -308,7 +308,7 @@ export function CompareProfilesView() {
             actions={
               <ActionPanel>
                 <Action
-                  title="Change Profile a"
+                  title="Change Locked Query"
                   icon={Icon.ArrowLeft}
                   onAction={handleChangeA}
                 />
@@ -381,7 +381,7 @@ export function CompareProfilesView() {
               actions={
                 <ActionPanel>
                   <Action
-                    title="Use as Profile a"
+                    title="Try Example Query"
                     icon={Icon.ArrowRight}
                     onAction={() => setQueryA(query)}
                   />

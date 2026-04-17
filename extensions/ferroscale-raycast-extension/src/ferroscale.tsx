@@ -4,7 +4,6 @@ import {
   Color,
   Icon,
   List,
-  LocalStorage,
   useNavigation,
 } from "@raycast/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -12,6 +11,7 @@ import { BrowseProfilesView } from "./browse-profiles";
 import { BrowseMaterialsView } from "./browse-materials";
 import { CompareProfilesView } from "./compare-profiles";
 import { CalculationHistoryView } from "./calculation-history";
+import { saveCalculationToHistory } from "./history";
 import {
   calculateQuickFromQuery,
   searchByDimension,
@@ -26,14 +26,6 @@ import { PROFILE_CATEGORY_LABELS } from "@ferroscale/metal-core/datasets";
 import type { ProfileCategory } from "@ferroscale/metal-core/datasets";
 
 const KG_TO_LBS = 2.20462;
-const MAX_HISTORY = 10;
-const HISTORY_KEY = "ferroscale-recent-calculations";
-
-interface HistoryEntry {
-  query: string;
-  result: QuickWeightResult;
-  timestamp: number;
-}
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -107,41 +99,6 @@ function resultToSummary(r: QuickWeightResult): string {
     lines.push(`Total price: ${r.totalPriceAmount.toFixed(2)} ${sym}`);
   }
   return lines.join("\n");
-}
-
-/* ------------------------------------------------------------------ */
-/*  History persistence                                                */
-/* ------------------------------------------------------------------ */
-
-function normalizeResult(r: QuickWeightResult): QuickWeightResult {
-  const totalWeightTonne = r.totalWeightTonne ?? r.totalWeightKg / 1000;
-  const linearDensityKgPerM =
-    r.linearDensityKgPerM ??
-    (r.lengthMm > 0 ? r.unitWeightKg / (r.lengthMm / 1000) : 0);
-  return { ...r, totalWeightTonne, linearDensityKgPerM };
-}
-
-async function loadHistory(): Promise<HistoryEntry[]> {
-  const raw = await LocalStorage.getItem<string>(HISTORY_KEY);
-  if (!raw) return [];
-  try {
-    const entries = JSON.parse(raw) as HistoryEntry[];
-    return entries.map((e) => ({ ...e, result: normalizeResult(e.result) }));
-  } catch {
-    return [];
-  }
-}
-
-async function saveToHistory(
-  query: string,
-  result: QuickWeightResult,
-): Promise<HistoryEntry[]> {
-  const existing = await loadHistory();
-  const entry: HistoryEntry = { query, result, timestamp: Date.now() };
-  const filtered = existing.filter((e) => e.query !== query);
-  const updated = [entry, ...filtered].slice(0, MAX_HISTORY);
-  await LocalStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
-  return updated;
 }
 
 /* ------------------------------------------------------------------ */
@@ -727,7 +684,7 @@ export default function Command() {
     clearTimeout(saveTimerRef.current);
     if (response?.ok) {
       saveTimerRef.current = setTimeout(() => {
-        saveToHistory(trimmedQuery, response.result);
+        void saveCalculationToHistory(trimmedQuery, response.result);
       }, 1500);
     }
     return () => clearTimeout(saveTimerRef.current);
@@ -763,7 +720,7 @@ export default function Command() {
               actions={
                 <ActionPanel>
                   <Action
-                    title="Open"
+                    title="Open Profile Browser"
                     icon={Icon.List}
                     onAction={() => push(<BrowseProfilesView />)}
                   />
@@ -777,7 +734,7 @@ export default function Command() {
               actions={
                 <ActionPanel>
                   <Action
-                    title="Open"
+                    title="Open Material Browser"
                     icon={Icon.Tag}
                     onAction={() => push(<BrowseMaterialsView />)}
                   />
@@ -791,7 +748,7 @@ export default function Command() {
               actions={
                 <ActionPanel>
                   <Action
-                    title="Open"
+                    title="Open Compare Tool"
                     icon={Icon.TwoArrowsClockwise}
                     onAction={() => push(<CompareProfilesView />)}
                   />
@@ -805,9 +762,11 @@ export default function Command() {
               actions={
                 <ActionPanel>
                   <Action
-                    title="Open"
+                    title="Open Calculation History"
                     icon={Icon.Clock}
-                    onAction={() => push(<CalculationHistoryView />)}
+                    onAction={() =>
+                      push(<CalculationHistoryView onRerun={handleCalculate} />)
+                    }
                   />
                 </ActionPanel>
               }
